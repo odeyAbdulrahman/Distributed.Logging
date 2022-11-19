@@ -1,7 +1,7 @@
 
 <h1 align="center">
   <br>
-  <a href=""><img src="" alt=" MUNS.Core" width="200"></a>
+  <a href=""><img src="https://pasteboard.co/UtD85JVUjoYN.x-icon" alt="Distributed.Logging" width="200"></a>
   <br>
    Distributed.Logging
   <br>
