@@ -1,14 +1,8 @@
 ﻿using Distributed.Logging.ViewModels;
 using Microsoft.AspNetCore.Http;
-using System;
-using System.Collections.Generic;
-using System.Data.Entity.Infrastructure;
-using System.Data.Entity.Validation;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Distributed.Logging.Extensions
 {
@@ -16,80 +10,94 @@ namespace Distributed.Logging.Extensions
     {
         public static async Task HandleExceptionAsync(HttpContext context, Exception exception)
         {
-            StringBuilder ValidationBuilder = new();
-            string traceIdentifier = context.TraceIdentifier; // IS REQUEST ID ALSO
             context.Response.ContentType = "application/json";
             var response = context.Response;
-            var errorResponse = new ErrorResponseMode { Status = context.Response.StatusCode };
-            errorResponse.TraceId = traceIdentifier;
-            switch (exception)
+            var errorResponse = new ErrorResponseModel
             {
-                case DbEntityValidationException ex:
-                    ex.EntityValidationErrors.Where(x => !x.IsValid).Select((x) =>
-                    {
-                        return ValidationBuilder.Append($"Entity of type { x.Entry.GetType().Name} is state {x.Entry.State} has the following Validation errors: { x.ValidationErrors.Select((v) => { return v.PropertyName + ":U+0020" + v.ErrorMessage; }).ToList().Aggregate((xx, yy) => $"[{xx} - {yy} ]")}");
-                    }).ToList();
-                    response.StatusCode = (int)HttpStatusCode.NotAcceptable;
-                    errorResponse.Status = (int)HttpStatusCode.NotAcceptable;
+                Status = context.Response.StatusCode,
+                TraceId = context.TraceIdentifier // IS REQUEST ID ALSO
+            };
+            switch (exception.GetType().ToString())
+            {
+                case "System.IndexOutOfRangeException":
+                    response.StatusCode = (int)HttpStatusCode.NotFound;
                     errorResponse.Type = response.ContentType;
-                    errorResponse.Message = ValidationBuilder.ToString();
+                    errorResponse.Title = nameof(HttpStatusCode.NotFound);
+                    errorResponse.Status = response.StatusCode;
+                    errorResponse.Message = exception.Message;
                     break;
-                case DbUpdateException ex:
-                    if (ex.InnerException is not null)
+                case "Microsoft.EntityFrameworkCore.DbUpdateException":
+                    response.StatusCode = (int)HttpStatusCode.NotAcceptable;
+                    errorResponse.Type = response.ContentType;
+                    errorResponse.Status = (int)HttpStatusCode.NotAcceptable;
+                    errorResponse.Title = "Database Issues";
+                    var dbUpEx = (Microsoft.EntityFrameworkCore.DbUpdateException)exception;
+                    if (dbUpEx.InnerException is not null)
                     {
                         response.StatusCode = (int)HttpStatusCode.NotAcceptable;
                         errorResponse.Status = (int)HttpStatusCode.NotAcceptable;
                         errorResponse.Type = response.ContentType;
-                        if (ex.InnerException.Message.Contains("unique index"))
+                        if (dbUpEx.InnerException.Message.ToLower().Contains("unique index"))
                         {
                             errorResponse.Title = "Unique Constraint";
-                            errorResponse.Message = $"Cannot insert duplicate key row";
+                            errorResponse.Message = "Cannot insert duplicate key row";
                         }
-                        else if (ex.InnerException.Message.Contains("Check Constraint"))
+                        else if (dbUpEx.InnerException.Message.ToLower().Contains("check Constraint"))
                         {
                             errorResponse.Title = "Check Constraint";
-                            errorResponse.Message = $"Constraint chech violation.";
+                            errorResponse.Message = "Constraint chech violation.";
+                        }
+                        else if (dbUpEx.InnerException.Message.ToLower().Contains("foreign key constraint"))
+                        {
+                            errorResponse.Title = "FOREIGN KEY constraint";
+                            errorResponse.Message = "The INSERT statement conflicted with the FOREIGN KEY constraint";
                         }
                         else
                         {
-                            errorResponse.Title = "Database Issues";
-                            errorResponse.Message = ex.Message;
+                            errorResponse.Message = dbUpEx.Message;
                         }
-                        break;
                     }
-                    response.StatusCode = (int)HttpStatusCode.NotAcceptable;
-                    errorResponse.Type = response.ContentType;
-                    errorResponse.Status = (int)HttpStatusCode.NotAcceptable;
-                    errorResponse.Message = ex.Message;
                     break;
-                case UnauthorizedAccessException ex:
+                case "System.UnauthorizedAccessException":
                     response.StatusCode = (int)HttpStatusCode.Unauthorized;
                     errorResponse.Type = response.ContentType;
                     errorResponse.Title = nameof(HttpStatusCode.Unauthorized);
                     errorResponse.Status = response.StatusCode;
-                    errorResponse.Message = ex.Message;
+                    errorResponse.Message = exception.Message;
                     break;
-                case ApplicationException ex:
-                    if (ex.Message.Contains("Invalid token"))
+                case "System.ApplicationException":
+                    exception.GetType();
+                    if (exception.Message.Contains("Invalid token"))
                     {
                         response.StatusCode = (int)HttpStatusCode.Forbidden;
                         errorResponse.Type = response.ContentType;
                         errorResponse.Title = nameof(HttpStatusCode.Forbidden);
                         errorResponse.Status = response.StatusCode;
-                        errorResponse.Message = ex.Message;
+                        errorResponse.Message = exception.Message;
                         break;
                     }
                     response.StatusCode = (int)HttpStatusCode.BadRequest;
                     errorResponse.Type = response.ContentType;
                     errorResponse.Status = response.StatusCode;
-                    errorResponse.Message = ex.Message;
+                    errorResponse.Message = exception.Message;
                     break;
-                case KeyNotFoundException ex:
-                    response.StatusCode = (int)HttpStatusCode.NotFound;
+                case "System.Collections.Generic.KeyNotFoundException":
                     errorResponse.Type = response.ContentType;
                     errorResponse.Title = nameof(HttpStatusCode.NotFound);
                     errorResponse.Status = response.StatusCode;
-                    errorResponse.Message = ex.Message;
+                    errorResponse.Message = exception.Message;
+                    break;
+                case "System.IO.FileNotFoundException":
+                    errorResponse.Type = response.ContentType;
+                    errorResponse.Title = nameof(HttpStatusCode.NotFound);
+                    errorResponse.Status = response.StatusCode;
+                    errorResponse.Message = exception.Message;
+                    break;
+                case "System.DllNotFoundException":
+                    errorResponse.Type = response.ContentType;
+                    errorResponse.Title = nameof(HttpStatusCode.NotFound);
+                    errorResponse.Status = response.StatusCode;
+                    errorResponse.Message = exception.Message;
                     break;
                 default:
                     response.StatusCode = (int)HttpStatusCode.InternalServerError;

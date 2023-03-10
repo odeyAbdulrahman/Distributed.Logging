@@ -1,10 +1,5 @@
-﻿using Distributed.Logging.ViewModels;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Net;
-using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
-using System.Data.SqlClient;
 using Distributed.Logging.Extensions;
 
 namespace Distributed.Logging.Middleware
@@ -32,6 +27,5 @@ namespace Distributed.Logging.Middleware
                 await HandleExtension.HandleExceptionAsync(httpContext, ex);
             }
         }
-        
     }
 }
