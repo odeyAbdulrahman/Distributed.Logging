@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Hosting;
 using Serilog;
+using Serilog.Events;
 using Serilog.Sinks.Elasticsearch;
 using System.Reflection;
 
@@ -11,13 +12,12 @@ namespace Distributed.Logging.Utilities
             (hostContext, configuration) =>
             {
                 var IndexFormat = $"app-logs-{Assembly.GetEntryAssembly().GetName().Name.ToLower().Replace(".", "-")}-{hostContext.HostingEnvironment.EnvironmentName.ToLower().Replace(".", "-")}-logs-{DateTime.UtcNow:yyyy-MM}";
-                string Inv = "Loc";
-                if (Inv == "Online")
-                    IndexFormat = $"app-logs-{Assembly.GetExecutingAssembly().GetName().Name.ToLower().Replace(".", "-")}-{hostContext.HostingEnvironment.EnvironmentName.ToLower().Replace(".", "-")}-logs-{DateTime.UtcNow:yyyy-MM}";
                 configuration
                 .Enrich.FromLogContext()
                 .Enrich.WithMachineName()
-                //.WriteTo.Console()
+                .Enrich.WithEnvironmentName()
+                .Enrich.WithEnvironmentUserName()
+                .Filter.ByExcluding(x => x.Level == LogEventLevel.Debug)
                 .WriteTo.Elasticsearch
                 (
                     new ElasticsearchSinkOptions(new Uri(hostContext.Configuration["ElasticConfiguration:Uri"]))

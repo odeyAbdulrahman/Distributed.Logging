@@ -4,7 +4,7 @@ namespace Distributed.Logging.ViewModels
 {
 
     [JsonObject(ItemNullValueHandling = NullValueHandling.Ignore)]
-    public class ErrorResponseMode
+    public class ErrorResponseModel
     {
 
         public string? TraceId { get; set; }
