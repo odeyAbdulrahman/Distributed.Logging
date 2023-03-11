@@ -1,4 +1,3 @@
-﻿
 # Distributed Logging with Elasticsearch and Kibana
 
 ![Logo](https://i.postimg.cc/WbS5ny0q/2125009.png)
