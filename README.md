@@ -1,78 +1,43 @@
-## Introduction
+﻿
+# Distributed Logging with Elasticsearch and Kibana
 
-This is a simple pipeline example for a .NET Core application, showing just
-how easy it is to get up and running with .NET development using GitLab.
+![Logo](https://i.postimg.cc/WbS5ny0q/2125009.png)
 
-# Reference links
+Did you know that up to 30% of software development time is spent debugging code? In this article, we'll show you how to save time and effort by automating the error-catching process and logging errors to Elasticsearch.
+Elasticsearch is a distributed, free and open search and analytics engine for all types of data, including textual, numerical, geospatial, structured, and unstructured. And through it, you can store logs of other types, according to your needs in the project. This powerful tool allows you to easily view and analyze system-level errors later on Kibana, a free and open user interface that lets you visualize your Elasticsearch data and navigate the Elastic Stack.
+Kibana lets you do anything from tracking query load to understanding the way requests flow through your apps. To enable logging with Elasticsearch in .NET, we'll be using Serilog, a plugin which provides diagnostics logging to files, console, and elsewhere. Various sinks are available for Serilog which we can set up easily has a clean API.
 
-- [GitLab CI Documentation](https://docs.gitlab.com/ee/ci/)
-- [.NET Hello World tutorial](https://dotnet.microsoft.com/learn/dotnet/hello-world-tutorial/)
 
-If you're new to .NET you'll want to check out the tutorial, but if you're
-already a seasoned developer considering building your own .NET app with GitLab,
-this should all look very familiar.
+## How to use:
+After adding the library to our project, we have to follow the following steps:
 
-## What's contained in this project
+1 - We will add some lines to Program.cs
+```javascript
+using Distributed.Logging.Utilities;
 
-The root of the repository contains the out of the `dotnet new console` command,
-which generates a new console application that just prints out "Hello, World."
-It's a simple example, but great for demonstrating how easy GitLab CI is to
-use with .NET. Check out the `Program.cs` and `dotnetcore.csproj` files to
-see how these work.
-
-In addition to the .NET Core content, there is a ready-to-go `.gitignore` file
-sourced from the the .NET Core [.gitignore](https://github.com/dotnet/core/blob/master/.gitignore). This
-will help keep your repository clean of build files and other configuration.
-
-Finally, the `.gitlab-ci.yml` contains the configuration needed for GitLab
-to build your code. Let's take a look, section by section.
-
-First, we note that we want to use the official Microsoft .NET SDK image
-to build our project.
-
+var builder = WebApplication.CreateBuilder(args);
+    builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
+            {
+                config.AddEnvironmentVariables();
+            }).UseSerilog(SeriLoggerUtility.Configure);
+var app = builder.Build();
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.Run();
 ```
-image: microsoft/dotnet:latest
+2 - add Elastic URL in appseting.json .
+```javascript
+{
+    "Serilog": {
+      "MinimumLevel": {
+        "Default": "Information",
+        "Override": {
+          "Microsoft": "Information",
+          "System": "Warning"
+        }
+      }
+    },
+    "ElasticConfiguration": {
+      "Uri": "http://localhost:9200"
+    }
+}
 ```
-
-We're defining two stages here: `build`, and `test`. As your project grows
-in complexity you can add more of these.
-
-```
-stages:
-    - build
-    - test
-```
-
-Next, we define our build job which simply runs the `dotnet build` command and
-identifies the `bin` folder as the output directory. Anything in the `bin` folder
-will be automatically handed off to future stages, and is also downloadable through
-the web UI.
-
-```
-build:
-    stage: build
-    script:
-        - "dotnet build"
-    artifacts:
-      paths:
-        - bin/
-```
-
-Similar to the build step, we get our test output simply by running `dotnet test`.
-
-```
-test:
-    stage: test
-    script: 
-        - "dotnet test"
-```
-
-This should be enough to get you started. There are many, many powerful options 
-for your `.gitlab-ci.yml`. You can read about them in our documentation 
-[here](https://docs.gitlab.com/ee/ci/yaml/).
-
-## Developing with Gitpod
-
-This template repository also has a fully-automated dev setup for [Gitpod](https://docs.gitlab.com/ee/integration/gitpod.html).
-
-The `.gitpod.yml` ensures that, when you open this repository in Gitpod, you'll get a cloud workspace with .NET Core pre-installed, and your project will automatically be built and start running.
